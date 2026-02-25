@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Flow</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">⚡ DailyFlow</div>
+            <div class="user-id-input">
+                <input type="text" id="telegramId" placeholder="Telegram Chat ID" />
+            </div>
+        </header>
+
+        <main>
+            <section class="greeting">
+                <h1>Welcome back. <br><span class="highlight">Let's crush today.</span></h1>
+                <p>Track your daily habits and share how you feel.</p>
+            </section>
+
+            <section class="journal-section">
+                <h2>How are you feeling right now?</h2>
+                <textarea id="dailyAnswer" placeholder="Write your thoughts here... e.g. 'I feel productive today!'"></textarea>
+            </section>
+
+            <section class="habits-section">
+                <h2>Daily Goals</h2>
+                <div class="habits-grid">
+                    
+                    <div class="habit-card">
+                        <div class="habit-icon">📚</div>
+                        <div class="habit-info">
+                            <h3>Reading</h3>
+                            <p>Pages</p>
+                        </div>
+                        <input type="number" id="pagesRead" min="0" value="0">
+                    </div>
+
+                    <div class="habit-card">
+                        <div class="habit-icon">🏃‍♂️</div>
+                        <div class="habit-info">
+                            <h3>Workout</h3>
+                            <p>Minutes</p>
+                        </div>
+                        <input type="number" id="workoutMins" min="0" value="0">
+                    </div>
+
+                    <div class="habit-card">
+                        <div class="habit-icon">💧</div>
+                        <div class="habit-info">
+                            <h3>Hydration</h3>
+                            <p>Glasses</p>
+                        </div>
+                        <input type="number" id="waterGlasses" min="0" value="0">
+                    </div>
+
+                    <div class="habit-card">
+                        <div class="habit-icon">💻</div>
+                        <div class="habit-info">
+                            <h3>Coding</h3>
+                            <p>Hours</p>
+                        </div>
+                        <input type="number" id="codingHours" min="0" step="0.5" value="0">
+                    </div>
+                </div>
+            </section>
+
+            <button class="submit-btn" onclick="submitData()">🚀 SEND UPDATE</button>
+
+            <div id="resultBox" class="result-box hidden">
+                <h3 id="resultMessage">Message goes here</h3>
+                <p id="resultActivity">Activity suggestion</p>
+            </div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
