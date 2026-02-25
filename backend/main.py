@@ -1,13 +1,12 @@
 import json
 import random
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from database import engine, get_db
 import models
 from sqlalchemy.orm import Session
-# --- EKLEDİĞİMİZ KISIM 1: Model ve JSON İçin Gerekli Kütüphaneler ---
 from transformers import pipeline
 
 # Veritabanı tablolarını oluştur
@@ -15,11 +14,14 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Daily Motivation and Tracking API")
 
-# --- EKLEDİĞİMİZ KISIM 2: Modelin ve Mesajların Yüklenmesi ---
-# Bu işlem uygulama başlarken bir kez yapılır, performansı korur.
-classifier = pipeline("text-classification", model="maymuni/bert-base-turkish-cased-emotion-analysis")
+# Modeli yükle
+classifier = pipeline(
+    "text-classification",
+    model="maymuni/bert-base-turkish-cased-emotion-analysis"
+)
 
-with open("messages.json", "r") as f:
+# JSON mesajları yükle
+with open("messages.json", "r", encoding="utf-8") as f:
     motivation_messages = json.load(f)
 
 app.add_middleware(
@@ -51,80 +53,96 @@ def read_root():
 
 @app.post("/submit_daily", response_model=MotivationResponse)
 def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
-    # 1. Kullanıcıyı bul veya oluştur
-    user = db.query(models.User).filter(models.User.platform_id == entry.telegram_chat_id).first()
+
+    # 1️⃣ Kullanıcıyı bul veya oluştur
+    user = db.query(models.User).filter(
+        models.User.platform_id == entry.telegram_chat_id
+    ).first()
+
     if not user:
-        user = models.User(username=f"user_{entry.telegram_chat_id}", platform_id=entry.telegram_chat_id)
+        user = models.User(
+            username=f"user_{entry.telegram_chat_id}",
+            platform_id=entry.telegram_chat_id
+        )
         db.add(user)
         db.commit()
         db.refresh(user)
 
-    # --- DEĞİŞTİRDİĞİMİZ KISIM 3: Gerçek Yapay Zeka Analizi ---
+    # 2️⃣ Yapay zeka analizi
     prediction = classifier(entry.answer)[0]
-    raw_label = prediction['label']
-    
-    # HATA AYIKLAMA (DEBUG): Terminalde modelin gerçekte ne döndürdüğünü görmek için
-    print(f"\n{'='*50}")
-    print(f"YAPAY ZEKA MODELİ ŞUNU BULDU: {prediction}")
-    print(f"{'='*50}\n")
-    
-    label = raw_label.lower()
-    
-    # ETİKET ÇEVİRİCİ: Modelden gelebilecek formatları (Türkçe, İngilizce veya Sayı) yakalıyoruz
-   label_mapping = {
-    "mutlu": "joy",
-    "mutluluk": "joy",
-    "joy": "joy",
-    "label_0": "joy",
+    raw_label = prediction["label"]
 
-    "üzgün": "sadness",
-    "uzgun": "sadness",
-    "üzüntü": "sadness",
-    "sadness": "sadness",
-    "label_1": "sadness",
+    print("\n" + "="*50)
+    print("MODEL ÇIKTISI:", prediction)
+    print("="*50)
 
-    "kızgın": "anger",
-    "kizgin": "anger",
-    "kızgınlık": "anger",
-    "öfke": "anger",
-    "ofke": "anger",
-    "anger": "anger",
-    "label_2": "anger",
+    label = raw_label.lower().strip()
 
-    "korkmuş": "fear",
-    "korkmus": "fear",
-    "korku": "fear",
-    "fear": "fear",
-    "label_3": "fear",
+    print("RAW LABEL:", raw_label)
+    print("LOWER LABEL:", label)
 
-    "sevgi": "love",
-    "love": "love",
-    "label_4": "love"
-}
-    
-    # Modelin etiketini JSON anahtarlarımıza çeviriyoruz (bulamazsa nötr kalır)
-    mapped_label = label_mapping.get(label, "neutral")
-    
-    # Veritabanına kaydedilecek isim için Türkçeleştirme
-    emotion_map = {
-        "joy": "Mutlu", "sadness": "Üzgün", "anger": "Kızgın", 
-        "fear": "Korkmuş", "love": "Sevgi Dolu", "neutral": "Nötr"
+    # 3️⃣ Etiket eşleme
+    label_mapping = {
+        "mutlu": "joy",
+        "mutluluk": "joy",
+        "joy": "joy",
+        "label_0": "joy",
+
+        "üzgün": "sadness",
+        "uzgun": "sadness",
+        "üzüntü": "sadness",
+        "sadness": "sadness",
+        "label_1": "sadness",
+
+        "kızgın": "anger",
+        "kizgin": "anger",
+        "kızgınlık": "anger",
+        "öfke": "anger",
+        "ofke": "anger",
+        "anger": "anger",
+        "label_2": "anger",
+
+        "korkmuş": "fear",
+        "korkmus": "fear",
+        "korku": "fear",
+        "fear": "fear",
+        "label_3": "fear",
+
+        "sevgi": "love",
+        "love": "love",
+        "label_4": "love"
     }
+
+    mapped_label = label_mapping.get(label)
+
+    print("MAPPED LABEL:", mapped_label)
+    print("JSON KEY VAR MI:", mapped_label in motivation_messages)
+
+    if not mapped_label or mapped_label not in motivation_messages:
+        print("KEY YOK → NEUTRAL'A DÜŞTÜ")
+        mapped_label = "neutral"
+
+    # 4️⃣ Veritabanına kaydedilecek Türkçe duygu adı
+    emotion_map = {
+        "joy": "Mutlu",
+        "sadness": "Üzgün",
+        "anger": "Kızgın",
+        "fear": "Korkmuş",
+        "love": "Sevgi Dolu",
+        "neutral": "Nötr"
+    }
+
     detected_feeling = emotion_map.get(mapped_label, "Nötr")
-    
-    # 4. Hava durumu API'sinden veri alınacak (Şimdilik mock)
-    weather = "Güneşli"
-    
-    # 5. Günlük yanıtı kaydet
+
+    # 5️⃣ Günlük kaydı oluştur
     daily_entry = models.DailyEntry(
         user_id=user.id,
         answer=entry.answer,
         detected_feeling=detected_feeling,
-        weather=weather
+        weather="Güneşli"
     )
     db.add(daily_entry)
 
-    # 6. Günlük alışkanlıkları kaydet
     daily_habits = models.DailyHabits(
         user_id=user.id,
         pages_read=entry.habits.pages_read,
@@ -133,17 +151,25 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
         coding_hours=entry.habits.coding_hours
     )
     db.add(daily_habits)
+
     db.commit()
-    
-    # --- DEĞİŞTİRDİĞİMİZ KISIM 4: Dinamik Motivasyon Mesajı ---
-    category_list = motivation_messages.get(mapped_label, motivation_messages["neutral"])
+
+    # 6️⃣ Motivasyon mesajı üret
+    category_list = motivation_messages.get(
+        mapped_label,
+        motivation_messages["neutral"]
+    )
+
     random_motivation = random.choice(category_list)
 
     message = (
-        f"{random_motivation} Dün {entry.habits.pages_read} sayfa kitap okudun ve "
-        f"{entry.habits.coding_hours} saat kod yazdın. Harika gidiyorsun!"
+        f"{random_motivation} Dün {entry.habits.pages_read} sayfa kitap okudun "
+        f"ve {entry.habits.coding_hours} saat kod yazdın. Harika gidiyorsun!"
     )
-    
+
     activity = "Bugün hava güneşli, belki parkta biraz yürüyüş yapıp podcast dinleyebilirsin."
-    
-    return MotivationResponse(message=message, suggested_activity=activity)
+
+    return MotivationResponse(
+        message=message,
+        suggested_activity=activity
+    )
