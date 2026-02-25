@@ -1,3 +1,5 @@
+import json
+import random
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -5,11 +7,20 @@ from typing import Optional
 from database import engine, get_db
 import models
 from sqlalchemy.orm import Session
+# --- EKLEDİĞİMİZ KISIM 1: Model ve JSON İçin Gerekli Kütüphaneler ---
+from transformers import pipeline
 
 # Veritabanı tablolarını oluştur
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Daily Motivation and Tracking API")
+
+# --- EKLEDİĞİMİZ KISIM 2: Modelin ve Mesajların Yüklenmesi ---
+# Bu işlem uygulama başlarken bir kez yapılır, performansı korur.
+classifier = pipeline("text-classification", model="maymuni/bert-base-turkish-cased-emotion-analysis")
+
+with open("messages.json", "r") as f:
+    motivation_messages = json.load(f)
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,13 +59,22 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
 
-    # 2. Hugging Face ile duygu analizi yapılacak (Şimdilik mock)
-    detected_feeling = "Mutlu" if "iyi" in entry.answer.lower() else "Nötr"
+    # --- DEĞİŞTİRDİĞİMİZ KISIM 3: Gerçek Yapay Zeka Analizi ---
+    # Mock (sahte) mantık yerine BERT modelini kullanıyoruz
+    prediction = classifier(entry.answer)[0]
+    label = prediction['label'].lower() # 'joy', 'sadness', 'anger' vb. olur
     
-    # 3. Hava durumu API'sinden veri alınacak (Şimdilik mock)
+    # Veritabanına kaydedilecek isim için Türkçeleştirme (opsiyonel)
+    emotion_map = {
+        "joy": "Mutlu", "sadness": "Üzgün", "anger": "Kızgın", 
+        "fear": "Korkmuş", "love": "Sevgi Dolu", "neutral": "Nötr"
+    }
+    detected_feeling = emotion_map.get(label, "Nötr")
+    
+    # 4. Hava durumu API'sinden veri alınacak (Şimdilik mock kalabilir)
     weather = "Güneşli"
     
-    # 4. Günlük yanıtı kaydet
+    # 5. Günlük yanıtı kaydet
     daily_entry = models.DailyEntry(
         user_id=user.id,
         answer=entry.answer,
@@ -63,7 +83,7 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
     )
     db.add(daily_entry)
 
-    # 5. Günlük alışkanlıkları kaydet
+    # 6. Günlük alışkanlıkları kaydet
     daily_habits = models.DailyHabits(
         user_id=user.id,
         pages_read=entry.habits.pages_read,
@@ -74,11 +94,17 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
     db.add(daily_habits)
     db.commit()
     
-    # 6. Motivasyon mesajı ve aktivite önerisi üretilecek
+    # --- DEĞİŞTİRDİĞİMİZ KISIM 4: Dinamik Motivasyon Mesajı ---
+    # Modelin bulduğu duyguya göre JSON'dan rastgele mesaj çekiyoruz
+    category_list = motivation_messages.get(label, motivation_messages["neutral"])
+    random_motivation = random.choice(category_list)
+
+    # Senin mevcut formatınla birleştiriyoruz
     message = (
-        f"Dün {entry.habits.pages_read} sayfa kitap okudun ve {entry.habits.coding_hours} saat kod yazdın, "
-        f"harika gidiyorsun! Bugün kendini {detected_feeling} hissediyorsun."
+        f"{random_motivation} Dün {entry.habits.pages_read} sayfa kitap okudun ve "
+        f"{entry.habits.coding_hours} saat kod yazdın. Harika gidiyorsun!"
     )
+    
     activity = "Bugün hava güneşli, belki parkta biraz yürüyüş yapıp podcast dinleyebilirsin."
     
     return MotivationResponse(message=message, suggested_activity=activity)
