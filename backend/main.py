@@ -60,18 +60,36 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
         db.refresh(user)
 
     # --- DEĞİŞTİRDİĞİMİZ KISIM 3: Gerçek Yapay Zeka Analizi ---
-    # Mock (sahte) mantık yerine BERT modelini kullanıyoruz
     prediction = classifier(entry.answer)[0]
-    label = prediction['label'].lower() # 'joy', 'sadness', 'anger' vb. olur
+    raw_label = prediction['label']
     
-    # Veritabanına kaydedilecek isim için Türkçeleştirme (opsiyonel)
+    # HATA AYIKLAMA (DEBUG): Terminalde modelin gerçekte ne döndürdüğünü görmek için
+    print(f"\n{'='*50}")
+    print(f"YAPAY ZEKA MODELİ ŞUNU BULDU: {prediction}")
+    print(f"{'='*50}\n")
+    
+    label = raw_label.lower()
+    
+    # ETİKET ÇEVİRİCİ: Modelden gelebilecek formatları (Türkçe, İngilizce veya Sayı) yakalıyoruz
+    label_mapping = {
+        "korku": "fear", "label_3": "fear", "fear": "fear",
+        "mutluluk": "joy", "label_0": "joy", "joy": "joy", "happiness": "joy",
+        "üzüntü": "sadness", "uzuntu": "sadness", "label_1": "sadness", "sadness": "sadness",
+        "kızgınlık": "anger", "öfke": "anger", "ofke": "anger", "label_2": "anger", "anger": "anger",
+        "sevgi": "love", "label_4": "love", "love": "love"
+    }
+    
+    # Modelin etiketini JSON anahtarlarımıza çeviriyoruz (bulamazsa nötr kalır)
+    mapped_label = label_mapping.get(label, "neutral")
+    
+    # Veritabanına kaydedilecek isim için Türkçeleştirme
     emotion_map = {
         "joy": "Mutlu", "sadness": "Üzgün", "anger": "Kızgın", 
         "fear": "Korkmuş", "love": "Sevgi Dolu", "neutral": "Nötr"
     }
-    detected_feeling = emotion_map.get(label, "Nötr")
+    detected_feeling = emotion_map.get(mapped_label, "Nötr")
     
-    # 4. Hava durumu API'sinden veri alınacak (Şimdilik mock kalabilir)
+    # 4. Hava durumu API'sinden veri alınacak (Şimdilik mock)
     weather = "Güneşli"
     
     # 5. Günlük yanıtı kaydet
@@ -95,11 +113,9 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
     db.commit()
     
     # --- DEĞİŞTİRDİĞİMİZ KISIM 4: Dinamik Motivasyon Mesajı ---
-    # Modelin bulduğu duyguya göre JSON'dan rastgele mesaj çekiyoruz
-    category_list = motivation_messages.get(label, motivation_messages["neutral"])
+    category_list = motivation_messages.get(mapped_label, motivation_messages["neutral"])
     random_motivation = random.choice(category_list)
 
-    # Senin mevcut formatınla birleştiriyoruz
     message = (
         f"{random_motivation} Dün {entry.habits.pages_read} sayfa kitap okudun ve "
         f"{entry.habits.coding_hours} saat kod yazdın. Harika gidiyorsun!"
