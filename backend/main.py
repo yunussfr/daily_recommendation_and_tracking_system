@@ -71,13 +71,36 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
     label = raw_label.lower()
     
     # ETİKET ÇEVİRİCİ: Modelden gelebilecek formatları (Türkçe, İngilizce veya Sayı) yakalıyoruz
-    label_mapping = {
-        "korku": "fear", "label_3": "fear", "fear": "fear",
-        "mutluluk": "joy", "label_0": "joy", "joy": "joy", "happiness": "joy",
-        "üzüntü": "sadness", "uzuntu": "sadness", "label_1": "sadness", "sadness": "sadness",
-        "kızgınlık": "anger", "öfke": "anger", "ofke": "anger", "label_2": "anger", "anger": "anger",
-        "sevgi": "love", "label_4": "love", "love": "love"
-    }
+   label_mapping = {
+    "mutlu": "joy",
+    "mutluluk": "joy",
+    "joy": "joy",
+    "label_0": "joy",
+
+    "üzgün": "sadness",
+    "uzgun": "sadness",
+    "üzüntü": "sadness",
+    "sadness": "sadness",
+    "label_1": "sadness",
+
+    "kızgın": "anger",
+    "kizgin": "anger",
+    "kızgınlık": "anger",
+    "öfke": "anger",
+    "ofke": "anger",
+    "anger": "anger",
+    "label_2": "anger",
+
+    "korkmuş": "fear",
+    "korkmus": "fear",
+    "korku": "fear",
+    "fear": "fear",
+    "label_3": "fear",
+
+    "sevgi": "love",
+    "love": "love",
+    "label_4": "love"
+}
     
     # Modelin etiketini JSON anahtarlarımıza çeviriyoruz (bulamazsa nötr kalır)
     mapped_label = label_mapping.get(label, "neutral")
