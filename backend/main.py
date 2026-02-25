@@ -1,5 +1,6 @@
 import json
 import random
+import unicodedata # Karakter hatalarını çözmek için ekledik
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -70,49 +71,39 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
 
     # 2️⃣ Yapay zeka analizi
     prediction = classifier(entry.answer)[0]
-    raw_label = str(prediction["label"]).lower().strip()
+    # NFKC normalizasyonu 'ü' harfinin farklı kodlanma (encoding) sorunlarını çözer
+    raw_label = unicodedata.normalize('NFKC', str(prediction["label"]).lower().strip())
 
-    print("\n" + "==================================================")
+    print("\n" + "X" * 50)
     print(f"YAPAY ZEKA MODELİ ŞUNU BULDU: {prediction}")
-    print(f"HAM ETİKET (TEMİZLENMİŞ): '{raw_label}'")
-    print("==================================================")
+    print(f"TEMİZLENMİŞ ETİKET: '{raw_label}'")
 
-    # 3️⃣ ETİKET EŞLEME (IF-ELIF-ELSE YAPISI)
-    # Burada tek tek kontrol ediyoruz ki hata payı kalmasın
-    if raw_label == "mutlu" or raw_label == "joy" or raw_label == "label_0":
+    # 3️⃣ ETİKET EŞLEME (IF-ELIF-ELSE - SİLİNMEDİ!)
+    # 'in' operatörü kullanarak karakter hatalarının önüne geçiyoruz
+    if "mutlu" in raw_label or "joy" in raw_label or "label_0" in raw_label:
         mapped_label = "joy"
-        print("SİSTEM NOTU: Mutluluk (Joy) tespit edildi.")
-    elif raw_label == "üzgün" or raw_label == "sadness" or raw_label == "label_1":
+    elif "üzgün" in raw_label or "uzgun" in raw_label or "sadness" in raw_label or "label_1" in raw_label:
         mapped_label = "sadness"
-        print("SİSTEM NOTU: Üzüntü (Sadness) tespit edildi.")
-    elif raw_label == "kızgın" or raw_label == "anger" or raw_label == "label_2":
+    elif "kızgın" in raw_label or "kizgin" in raw_label or "anger" in raw_label or "label_2" in raw_label:
         mapped_label = "anger"
-        print("SİSTEM NOTU: Öfke (Anger) tespit edildi.")
-    elif raw_label == "korkmuş" or raw_label == "fear" or raw_label == "label_3":
+    elif "kork" in raw_label or "fear" in raw_label or "label_3" in raw_label:
         mapped_label = "fear"
-        print("SİSTEM NOTU: Korku (Fear) tespit edildi.")
-    elif raw_label == "sevgi" or raw_label == "love" or raw_label == "label_4":
+    elif "sevgi" in raw_label or "love" in raw_label or "label_4" in raw_label:
         mapped_label = "love"
-        print("SİSTEM NOTU: Sevgi (Love) tespit edildi.")
     else:
         mapped_label = "neutral"
-        print(f"SİSTEM NOTU: Tanımlanamayan etiket ('{raw_label}'), Nötr'e düşüldü.")
 
-    # 4️⃣ VERİTABANINA KAYDEDİLECEK TÜRKÇE DUYGU ADI (IF-ELIF-ELSE)
-    if mapped_label == "joy":
-        detected_feeling = "Mutlu"
-    elif mapped_label == "sadness":
-        detected_feeling = "Üzgün"
-    elif mapped_label == "anger":
-        detected_feeling = "Kızgın"
-    elif mapped_label == "fear":
-        detected_feeling = "Korkmuş"
-    elif mapped_label == "love":
-        detected_feeling = "Sevgi Dolu"
-    else:
-        detected_feeling = "Nötr"
+    print(f"EŞLEŞEN KATEGORİ: {mapped_label}")
 
-    # 5️⃣ Günlük kaydı oluştur
+    # 4️⃣ Veritabanı Etiketi
+    if mapped_label == "joy": detected_feeling = "Mutlu"
+    elif mapped_label == "sadness": detected_feeling = "Üzgün"
+    elif mapped_label == "anger": detected_feeling = "Kızgın"
+    elif mapped_label == "fear": detected_feeling = "Korkmuş"
+    elif mapped_label == "love": detected_feeling = "Sevgi Dolu"
+    else: detected_feeling = "Nötr"
+
+    # 5️⃣ Günlük kayıt oluştur (SİLİNMEDİ!)
     daily_entry = models.DailyEntry(
         user_id=user.id,
         answer=entry.answer,
@@ -131,31 +122,16 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
     db.add(daily_habits)
     db.commit()
 
-    # 6️⃣ MOTİVASYON MESAJI ÜRET (IF-ELIF-ELSE İLE GARANTİYE ALMA)
-    # Burada direkt mapped_label üzerinden JSON listesini çekiyoruz
-    if mapped_label == "joy":
-        category_list = motivation_messages.get("joy")
-    elif mapped_label == "sadness":
-        category_list = motivation_messages.get("sadness")
-    elif mapped_label == "anger":
-        category_list = motivation_messages.get("anger")
-    elif mapped_label == "fear":
-        category_list = motivation_messages.get("fear")
-    elif mapped_label == "love":
-        category_list = motivation_messages.get("love")
+    # 6️⃣ Motivasyon mesajı üret
+    if mapped_label in motivation_messages:
+        category_list = motivation_messages[mapped_label]
     else:
-        category_list = motivation_messages.get("neutral")
-
-    # Eğer bir şekilde category_list boş gelirse (JSON hatası vs.)
-    if not category_list:
-        print("KRİTİK HATA: JSON kategorisi bulunamadı!")
+        print(f"UYARI: {mapped_label} JSON'da yok, Nötr'e gidiliyor.")
         category_list = motivation_messages["neutral"]
 
     random_motivation = random.choice(category_list)
-
-    print(f"SEÇİLEN KATEGORİ: {mapped_label}")
-    print(f"SEÇİLEN MESAJ: {random_motivation}")
-    print("==================================================\n")
+    print(f"EKRANA GİDEN MESAJ: {random_motivation}")
+    print("X" * 50 + "\n")
 
     message = (
         f"{random_motivation} Dün {entry.habits.pages_read} sayfa kitap okudun "
@@ -164,7 +140,4 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
 
     activity = "Bugün hava güneşli, belki parkta biraz yürüyüş yapıp podcast dinleyebilirsin."
 
-    return MotivationResponse(
-        message=message,
-        suggested_activity=activity
-    )
+    return MotivationResponse(message=message, suggested_activity=activity)
