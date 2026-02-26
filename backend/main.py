@@ -47,18 +47,15 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
         db.add(user)
         db.commit()
         db.refresh(user)
-
-    # 2. Hugging Face ile duygu analizi yapılacak (Şimdilik mock)
-    detected_feeling = "Mutlu" if "iyi" in entry.answer.lower() else "Nötr"
     
     # 3. Hava durumu API'sinden veri alınacak (Şimdilik mock)
-    weather = "Güneşli"
+    weather = "Güneşli" # buraya sonradan bir url konulacak orada onun verisi çekilecek 
     
     # 4. Günlük yanıtı kaydet
     daily_entry = models.DailyEntry(
         user_id=user.id,
         answer=entry.answer,
-        detected_feeling=detected_feeling,
+
         weather=weather
     )
     db.add(daily_entry)
@@ -77,7 +74,6 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
     # 6. Motivasyon mesajı ve aktivite önerisi üretilecek
     message = (
         f"Dün {entry.habits.pages_read} sayfa kitap okudun ve {entry.habits.coding_hours} saat kod yazdın, "
-        f"harika gidiyorsun! Bugün kendini {detected_feeling} hissediyorsun."
     )
     activity = "Bugün hava güneşli, belki parkta biraz yürüyüş yapıp podcast dinleyebilirsin."
     

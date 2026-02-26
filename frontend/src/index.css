@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-[#0F172A] text-white min-h-screen font-sans antialiased overflow-x-hidden;
+    background: radial-gradient(circle at top left, #1E1B4B, #0F172A 40%, #0F172A);
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl;
+  }
+
+  .glass-button {
+    @apply relative overflow-hidden bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl px-6 py-3 transition-all duration-300 hover:shadow-[0_0_20px_rgba(168, 85, 247, 0.4)] hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .mood-btn {
+    @apply flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-300 bg-white/5 border border-white/10 hover:bg-white/10 hover:scale-105 active:scale-95;
+  }
+
+  .mood-btn.selected {
+    @apply border-purple-400 bg-purple-500/20 shadow-[0_0_15px_rgba(168, 85, 247, 0.3)];
+  }
+}
+
+@theme {
+  --animate-bounce-soft: bounceSoft 2s infinite;
+
+  @keyframes bounceSoft {
+
+    0%,
+    100% {
+      transform: translateY(-5%);
+    }
+
+    50% {
+      transform: translateY(0);
+    }
+  }
+}
