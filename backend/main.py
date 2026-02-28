@@ -68,6 +68,8 @@ def submit_daily_entry(entry: DailyEntryInput, db: Session = Depends(get_db)):
         db.add(user)
         db.commit()
         db.refresh(user)
+        
+ 
 
     # 2️⃣ Yapay zeka analizi
     prediction = classifier(entry.answer)[0]
