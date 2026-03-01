@@ -2,15 +2,15 @@
 
 @layer base {
   body {
-    @apply bg-[#0F172A] text-white min-h-screen font-sans antialiased overflow-x-hidden;
-    background: radial-gradient(circle at top left, #1E1B4B, #0F172A 40%, #0F172A);
+    /* Hem aydınlık (bg-gray-50, text-gray-900) hem de karanlık (dark:bg-[#0F172A], dark:text-white) tema için ayarlandı */
+    @apply bg-gray-50 text-gray-900 dark:bg-[#0F172A] dark:text-white min-h-screen font-sans antialiased overflow-x-hidden transition-colors duration-300;
   }
 }
 
 @layer components {
-
+  /* Glass card'ı hem aydınlık hem karanlık temaya uyumlu hale getirdik */
   .glass-card {
-    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl;
+    @apply bg-white/60 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl transition-colors duration-300;
   }
 
   .glass-button {
@@ -22,36 +22,27 @@
   }
 
   .mood-btn {
-    @apply flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-300 bg-white/5 border border-white/10 hover:bg-white/10 hover:scale-105 active:scale-95;
+    @apply flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-300 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 hover:scale-105 active:scale-95;
   }
 
+  /* Çift yazılan kısımlar birleştirildi */
   .mood-btn.selected {
-    @apply border-purple-400 bg-purple-500/20;
+    @apply border-purple-400 bg-purple-50 dark:bg-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.3)];
   }
-
-  .mood-btn.selected {
-    box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
-  }
-
 }
 
 @layer utilities {
-
   .animate-bounce-soft {
     animation: bounceSoft 2s infinite;
   }
-
 }
 
 @keyframes bounceSoft {
-
   0%,
   100% {
     transform: translateY(-5%);
   }
-
   50% {
     transform: translateY(0);
   }
-
 }
