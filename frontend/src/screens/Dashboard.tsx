@@ -1,25 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookOpen, Dumbbell, Droplets, Code, Send } from 'lucide-react';
+import { BookOpen, Dumbbell, Droplets, Code, Send, CheckCircle2, Circle } from 'lucide-react';
 import { submitDailyData } from '../services/api';
 
 export const Dashboard = () => {
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [username, setUsername] = useState('Misafir');
 
+    // Hedeflerin tamamlanma durumunu tutan state (Sayı yerine boolean mantığı)
     const [habits, setHabits] = useState({
-        pages_read: 0,
-        workout_minutes: 0,
-        water_glasses: 0,
-        coding_hours: 0
+        reading: false,
+        workout: false,
+        water: false,
+        coding: false
     });
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setHabits({
-            ...habits,
-            [e.target.name]: parseFloat(e.target.value) || 0
-        });
+    useEffect(() => {
+        // Login ekranından kaydedilen kullanıcı adını çekiyoruz
+        const storedUser = localStorage.getItem('dailyflow_user');
+        if (storedUser) {
+            setUsername(storedUser);
+        }
+    }, []);
+
+    const toggleHabit = (habitName: keyof typeof habits) => {
+        setHabits(prev => ({
+            ...prev,
+            [habitName]: !prev[habitName]
+        }));
     };
 
     const handleSubmit = async () => {
@@ -34,21 +44,25 @@ export const Dashboard = () => {
         setIsSubmitting(true);
 
         try {
+            // API'ye boolean değerleri (veya backend nasıl istiyorsa ona göre sayı) gönderiyoruz
             const response = await submitDailyData({
                 telegram_chat_id: telegramId,
                 answer: answer,
-                habits: habits
+                habits: {
+                    pages_read: habits.reading ? 1 : 0,
+                    workout_minutes: habits.workout ? 1 : 0,
+                    water_glasses: habits.water ? 1 : 0,
+                    coding_hours: habits.coding ? 1 : 0
+                }
             });
 
-            // Store recommendation
             localStorage.setItem('recommendation', JSON.stringify(response));
             navigate('/recommendation');
         } catch (err) {
             console.error('Submission failed', err);
-            // Fallback for demo if backend is offline
             localStorage.setItem('recommendation', JSON.stringify({
-                message: "You're doing great! Keep building those habits.",
-                suggested_activity: "Take a 5-minute break and stretch."
+                message: "Harika gidiyorsun! Bu alışkanlıkları inşa etmeye devam et.",
+                suggested_activity: "Kısa bir mola ver ve esne."
             }));
             navigate('/recommendation');
         } finally {
@@ -58,10 +72,7 @@ export const Dashboard = () => {
 
     const container = {
         hidden: { opacity: 0 },
-        show: {
-            opacity: 1,
-            transition: { staggerChildren: 0.1 }
-        }
+        show: { opacity: 1, transition: { staggerChildren: 0.1 } }
     };
 
     const item = {
@@ -74,91 +85,126 @@ export const Dashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="glass-card p-6 flex flex-col gap-6"
+            className="w-full flex flex-col gap-6"
         >
-            <div>
-                <h2 className="text-2xl font-bold mb-1">Daily Goals</h2>
-                <p className="text-sm text-gray-400">Consistency is your superpower.</p>
+            {/* Karşılama Alanı */}
+            <div className="bg-white/60 dark:bg-dark/40 backdrop-blur-xl rounded-3xl p-8 border border-gray-200 dark:border-gray-800 shadow-xl">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                    Tekrar Hoş Geldin, <span className="text-primary">{username}</span> 👋
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400">
+                    Bugün hangi hedeflerini tamamladın? İşaretle ve gününü taçlandır.
+                </p>
             </div>
 
+            {/* Hedefler Alanı */}
             <motion.div
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-2 gap-4"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
             >
-                <motion.div variants={item} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
-                    <div className="flex items-center gap-2">
-                        <BookOpen className="text-blue-400" size={20} />
-                        <span className="font-semibold">Reading</span>
+                {/* Okuma Hedefi */}
+                <motion.div 
+                    variants={item}
+                    onClick={() => toggleHabit('reading')}
+                    className={`cursor-pointer rounded-2xl p-5 flex items-center justify-between transition-all duration-300 border ${
+                        habits.reading 
+                        ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]' 
+                        : 'bg-white/50 dark:bg-dark/30 border-gray-200 dark:border-gray-800 hover:border-blue-500/30'
+                    }`}
+                >
+                    <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-xl ${habits.reading ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-dark text-blue-400'}`}>
+                            <BookOpen size={24} />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-lg">Kitap Okuma</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Günlük hedefini tamamla</p>
+                        </div>
                     </div>
-                    <div className="flex items-center justify-between mt-auto">
-                        <span className="text-xs text-gray-400">Pages</span>
-                        <input
-                            type="number" name="pages_read" min="0"
-                            value={habits.pages_read || ''} onChange={handleChange}
-                            className="w-16 bg-white/10 rounded-lg p-1 text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
-                        />
-                    </div>
+                    {habits.reading ? <CheckCircle2 className="text-blue-500" size={28} /> : <Circle className="text-gray-300 dark:text-gray-600" size={28} />}
                 </motion.div>
 
-                <motion.div variants={item} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
-                    <div className="flex items-center gap-2">
-                        <Dumbbell className="text-green-400" size={20} />
-                        <span className="font-semibold">Workout</span>
+                {/* Egzersiz Hedefi */}
+                <motion.div 
+                    variants={item}
+                    onClick={() => toggleHabit('workout')}
+                    className={`cursor-pointer rounded-2xl p-5 flex items-center justify-between transition-all duration-300 border ${
+                        habits.workout 
+                        ? 'bg-green-500/10 border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.2)]' 
+                        : 'bg-white/50 dark:bg-dark/30 border-gray-200 dark:border-gray-800 hover:border-green-500/30'
+                    }`}
+                >
+                    <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-xl ${habits.workout ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-dark text-green-400'}`}>
+                            <Dumbbell size={24} />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-lg">Egzersiz</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Günlük sporu yap</p>
+                        </div>
                     </div>
-                    <div className="flex items-center justify-between mt-auto">
-                        <span className="text-xs text-gray-400">Mins</span>
-                        <input
-                            type="number" name="workout_minutes" min="0"
-                            value={habits.workout_minutes || ''} onChange={handleChange}
-                            className="w-16 bg-white/10 rounded-lg p-1 text-center focus:outline-none focus:ring-1 focus:ring-green-400"
-                        />
-                    </div>
+                    {habits.workout ? <CheckCircle2 className="text-green-500" size={28} /> : <Circle className="text-gray-300 dark:text-gray-600" size={28} />}
                 </motion.div>
 
-                <motion.div variants={item} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
-                    <div className="flex items-center gap-2">
-                        <Droplets className="text-cyan-400" size={20} />
-                        <span className="font-semibold">Water</span>
+                {/* Su Hedefi */}
+                <motion.div 
+                    variants={item}
+                    onClick={() => toggleHabit('water')}
+                    className={`cursor-pointer rounded-2xl p-5 flex items-center justify-between transition-all duration-300 border ${
+                        habits.water 
+                        ? 'bg-cyan-500/10 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]' 
+                        : 'bg-white/50 dark:bg-dark/30 border-gray-200 dark:border-gray-800 hover:border-cyan-500/30'
+                    }`}
+                >
+                    <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-xl ${habits.water ? 'bg-cyan-500 text-white' : 'bg-gray-100 dark:bg-dark text-cyan-400'}`}>
+                            <Droplets size={24} />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-lg">Su Tüketimi</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Hedeflenen suyu iç</p>
+                        </div>
                     </div>
-                    <div className="flex items-center justify-between mt-auto">
-                        <span className="text-xs text-gray-400">Glasses</span>
-                        <input
-                            type="number" name="water_glasses" min="0"
-                            value={habits.water_glasses || ''} onChange={handleChange}
-                            className="w-16 bg-white/10 rounded-lg p-1 text-center focus:outline-none focus:ring-1 focus:ring-cyan-400"
-                        />
-                    </div>
+                    {habits.water ? <CheckCircle2 className="text-cyan-500" size={28} /> : <Circle className="text-gray-300 dark:text-gray-600" size={28} />}
                 </motion.div>
 
-                <motion.div variants={item} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
-                    <div className="flex items-center gap-2">
-                        <Code className="text-purple-400" size={20} />
-                        <span className="font-semibold">Coding</span>
+                {/* Kodlama Hedefi */}
+                <motion.div 
+                    variants={item}
+                    onClick={() => toggleHabit('coding')}
+                    className={`cursor-pointer rounded-2xl p-5 flex items-center justify-between transition-all duration-300 border ${
+                        habits.coding 
+                        ? 'bg-purple-500/10 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]' 
+                        : 'bg-white/50 dark:bg-dark/30 border-gray-200 dark:border-gray-800 hover:border-purple-500/30'
+                    }`}
+                >
+                    <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-xl ${habits.coding ? 'bg-purple-500 text-white' : 'bg-gray-100 dark:bg-dark text-purple-400'}`}>
+                            <Code size={24} />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-lg">Kodlama (C)</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Günlük pratiğini yap</p>
+                        </div>
                     </div>
-                    <div className="flex items-center justify-between mt-auto">
-                        <span className="text-xs text-gray-400">Hours</span>
-                        <input
-                            type="number" name="coding_hours" min="0" step="0.5"
-                            value={habits.coding_hours || ''} onChange={handleChange}
-                            className="w-16 bg-white/10 rounded-lg p-1 text-center focus:outline-none focus:ring-1 focus:ring-purple-400"
-                        />
-                    </div>
+                    {habits.coding ? <CheckCircle2 className="text-purple-500" size={28} /> : <Circle className="text-gray-300 dark:text-gray-600" size={28} />}
                 </motion.div>
             </motion.div>
 
+            {/* Gönder Butonu */}
             <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="glass-button flex justify-center items-center gap-2 mt-4"
+                className="w-full mt-4 py-4 px-6 rounded-xl flex justify-center items-center gap-2 text-white bg-primary hover:bg-primaryHover focus:ring-4 focus:ring-primary/50 transition-all font-semibold text-lg shadow-lg disabled:opacity-70"
             >
                 {isSubmitting ? (
-                    <span className="animate-pulse">Syncing...</span>
+                    <span className="animate-pulse">Güncelleniyor...</span>
                 ) : (
                     <>
-                        <span>Submit Entry</span>
-                        <Send size={18} />
+                        <span>Günü Kaydet</span>
+                        <Send size={20} />
                     </>
                 )}
             </button>
